@@ -1,57 +1,65 @@
-# SpringBoot_Lesson11.2
+# SpringBoot_Lesson12.2
 
 ## Propmt for the Code Agent (Codex, Gemini Code Assistant or Copilot)
 
 **Context**:
 
-I want to customize the Actuator endpoints in my Spring Boot 3.3 application to provide more specific operational data.
+My Spring Boot 3.3 application is already configured for tracing.
+
+I now want to add a custom span around a specific business method to measure its performance, using only the existing TaskController/TaskService/Task code (no new Product classes).
 
 **Task**:
 
-Configure the build to include version information in the /info endpoint.
-
-Implement a custom health indicator that checks for a fictional external service.
+Create a custom span for a method within the TaskService and have TaskController call it.
 
 **Constraints**:
 
-Use Maven or Gradle.
+The custom span should be named "check-inventory-status".
 
-The /info endpoint should display the project's version from the build file.
-
-The custom health check should be named "ExternalService" and contribute to the /health endpoint's status.
+The method should simulate a delay.
 
 **Steps**:
 
-For the /info endpoint:
+Assume a TaskService class exists.
 
-a. Modify the pom.xml (for Maven) or build.gradle (for Gradle) to enable the build-info goal for the spring-boot-maven-plugin/spring-boot-gradle-plugin.
+Create a new public method in TaskService called getInventoryStatus(Long taskId).
 
-**For the custom health check**:
+Inside the method, simulate a 300ms delay using Thread.sleep(300).
 
-a. Create a new Java class named ExternalServiceHealthIndicator that implements the HealthIndicator interface.
+Annotate the method with Micrometer Tracing’s @NewSpan(name = "check-inventory-status").
 
-b. The class must be a Spring @Component.
+Modify the existing TaskController GET /tasks/{id} handler to call taskService.getInventoryStatus(id) before returning the task.
 
-c. In the health() method, implement simple logic:
-
-if a random number is greater than 0.1, return Health.up().withDetail("message", "Service is reachable").build(). Otherwise, return 
-
-Health.down().withDetail("error", "Service is not available").build().
-
-Provide instructions to run the application and curl commands to verify both customizations.
+Provide instructions to rebuild, run, and test.
 
 **Deliverables**:
 
-The required plugin configuration for pom.xml or build.gradle.
+The full code for the modified TaskService method:
 
-The full code for ExternalServiceHealthIndicator.java.
+@NewSpan(name = "check-inventory-status")
 
-curl commands to check the /management/info and /management/health endpoints again to see the new data.
+public String getInventoryStatus(Long taskId) {
 
-**Acceptance Criteria for your AI-generated code**:
+try { Thread.sleep(300); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
 
-• After a rebuild, running the application and accessing /management/info shows a JSON response containing a build object with the project's version.
+return "IN_STOCK";
 
-• Accessing /management/health now shows a components object containing diskSpace, ping, and the new externalService.
+}
 
-• The status of externalService will be "UP" or "DOWN" based on the logic you implemented, and this will affect the overall application status
+The line to add to TaskController:
+
+taskService.getInventoryStatus(id);
+
+Verification steps: Explain how to find the new trace in Jaeger and what to look for (the custom "check-inventory-status" span). 
+
+Include that the service name is product-service and the span should be a child of the controller’s main span with ~300ms duration.
+
+**Acceptance Criteria**:
+
+The application compiles and runs.
+
+When a request is made to GET /tasks/{id} and you view the trace in Jaeger, you see a new span named "check-inventory-status".
+
+This new span is a child of the controller’s main HTTP span.
+
+The duration of the "check-inventory-status" span is approximately 300ms, clearly visible in the trace timeline.
